@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personal Values Engine — Know Your Values. Dominate Your Lane.</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: #0a0a0f; }
+  body { font-family: 'Georgia', 'Times New Roman', serif; color: #e8e2d9; }
+  textarea:focus { border-color: rgba(201,168,76,0.5) !important; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .analyze-step { animation: fadeIn 0.5s ease forwards; opacity: 0; }
+  .analyze-step:nth-child(1) { animation-delay: 0.1s; }
+  .analyze-step:nth-child(2) { animation-delay: 0.7s; }
+  .analyze-step:nth-child(3) { animation-delay: 1.3s; }
+  .analyze-step:nth-child(4) { animation-delay: 1.9s; }
+  .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .value-card:hover { border-color: rgba(201,168,76,0.4) !important; background: rgba(201,168,76,0.05) !important; }
+  .bar-fill { transition: width 1.2s ease; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0a0f; }
+  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const VALUES_CARDS = [
+  { id: "freedom",    emoji: "🦅", label: "Freedom",    desc: "Independence & self-direction" },
+  { id: "legacy",     emoji: "🏛️", label: "Legacy",     desc: "Long-term impact & heritage" },
+  { id: "wealth",     emoji: "💰", label: "Wealth",     desc: "Financial abundance & security" },
+  { id: "family",     emoji: "❤️", label: "Family",     desc: "Deep personal bonds" },
+  { id: "faith",      emoji: "✨", label: "Faith",      desc: "Spiritual conviction" },
+  { id: "growth",     emoji: "🌱", label: "Growth",     desc: "Constant self-improvement" },
+  { id: "service",    emoji: "🤝", label: "Service",    desc: "Helping & uplifting others" },
+  { id: "power",      emoji: "⚡", label: "Power",      desc: "Influence & leadership" },
+  { id: "creativity", emoji: "🎨", label: "Creativity", desc: "Expression & innovation" },
+  { id: "integrity",  emoji: "🛡️", label: "Integrity",  desc: "Honesty above all else" },
+  { id: "adventure",  emoji: "🗺️", label: "Adventure",  desc: "Risk, thrill & discovery" },
+  { id: "loyalty",    emoji: "🔗", label: "Loyalty",    desc: "Unwavering commitment" },
+];
+
+const QUESTIONS = [
+  { id: "goal",     prompt: "What's the ONE goal you'd regret NOT achieving in your lifetime?",       placeholder: "e.g. Build a business empire, leave a legacy for my kids, achieve financial freedom..." },
+  { id: "decision", prompt: "Describe a decision you're currently wrestling with.",                   placeholder: "e.g. Whether to launch a new venture, change careers, take on a new partner..." },
+  { id: "role",     prompt: "What role do you play in your industry or business right now?",          placeholder: "e.g. CEO, consultant, investor, entrepreneur, advisor..." },
+];
+
+function App() {
+  const [stage, setStage]               = useState("welcome");
+  const [selectedValues, setSelectedValues] = useState([]);
+  const [answers, setAnswers]           = useState({});
+  const [currentQ, setCurrentQ]         = useState(-1);
+  const [result, setResult]             = useState(null);
+  const [dots, setDots]                 = useState("");
+  const [angle, setAngle]               = useState(0);
+  const animRef                         = useRef();
+
+  useEffect(() => {
+    const t = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 400);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const loop = () => { setAngle(a => (a + 0.3) % 360); animRef.current = requestAnimationFrame(loop); };
+    animRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animRef.current);
+  }, []);
+
+  const fy = Math.sin(angle * Math.PI / 180) * 10;
+  const fx = Math.cos(angle * Math.PI / 180) * 5;
+
+  const toggleValue = id => {
+    setSelectedValues(prev =>
+      prev.includes(id) ? prev.filter(v => v !== id) : prev.length < 5 ? [...prev, id] : prev
+    );
+  };
+
+  const analyzeValues = async () => {
+    setStage("analyze");
+    const topValues = selectedValues.map(id => VALUES_CARDS.find(v => v.id === id)?.label).join(", ");
+    const prompt = `You are a world-class business and personal development coach. Analyze this entrepreneur's personal values and give them razor-sharp, actionable coaching.
+
+THEIR TOP VALUES: ${topValues}
+THEIR LIFETIME GOAL: ${answers.goal || "Not specified"}
+CURRENT DECISION THEY'RE WRESTLING WITH: ${answers.decision || "Not specified"}
+THEIR CURRENT ROLE: ${answers.role || "Not specified"}
+
+Give them a powerful, personalized values analysis in this EXACT JSON format (return ONLY valid JSON, no markdown, no backticks):
+{
+  "headline": "A bold 10-word headline that captures their core identity as a values-driven leader",
+  "coreTheme": "2-3 sentences identifying the DEEPER theme connecting their top values",
+  "superpower": "Their #1 competitive advantage based on these values (2-3 sentences)",
+  "blindspot": "The hidden risk or blindspot these values create (2 sentences, be honest)",
+  "goalAlignment": "How their values either fuel or conflict with their lifetime goal (3-4 sentences)",
+  "decisionGuide": "Specific guidance on their current decision through the lens of their values (3-4 sentences)",
+  "powerMove": "ONE bold action they should take this week that perfectly aligns with their values",
+  "affirmation": "A short, powerful affirmation (1 sentence) built from their specific values",
+  "valueRankings": [
+    {"value": "ValueName", "score": 95, "role": "one short phrase describing how this value shows up"}
+  ]
+}
+
+Be direct, bold, specific. No fluff. Use their actual goal, decision, and role.`;
+
+    try {
+      const res  = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await res.json();
+      const text = data.content?.find(b => b.type === "text")?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      setResult(JSON.parse(clean));
+      setStage("results");
+    } catch(e) {
+      setResult({ error: "Analysis failed — please try again." });
+      setStage("results");
+    }
+  };
+
+  const reset = () => { setStage("welcome"); setSelectedValues([]); setAnswers({}); setCurrentQ(-1); setResult(null); };
+
+  const S = {
+    root: { minHeight: "100vh", background: "#0a0a0f", padding: "28px 16px 72px", position: "relative", overflow: "hidden" },
+    orb: { position: "fixed", borderRadius: "50%", filter: "blur(90px)", opacity: 0.13, pointerEvents: "none", zIndex: 0 },
+    wrap: { maxWidth: 680, margin: "0 auto", position: "relative", zIndex: 1 },
+    card: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.18)", borderRadius: 18, padding: "32px 28px", marginBottom: 16, backdropFilter: "blur(14px)" },
+    badge: { display: "inline-block", fontSize: 10, fontFamily: "monospace", letterSpacing: 3, color: "#c9a84c", border: "1px solid rgba(201,168,76,0.35)", padding: "4px 12px", borderRadius: 4, marginBottom: 20 },
+    heroIcon: { fontSize: 64, textAlign: "center", display: "block", marginBottom: 14 },
+    h1: { fontSize: "clamp(26px,5vw,38px)", fontWeight: 700, textAlign: "center", lineHeight: 1.2, marginBottom: 16, color: "#e8e2d9" },
+    gold: { color: "#c9a84c" },
+    sub: { fontSize: 15, lineHeight: 1.75, color: "#a89f94", textAlign: "center", marginBottom: 24 },
+    pills: { display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 },
+    pill: { fontSize: 11, fontFamily: "monospace", color: "#7eb8a4", border: "1px solid rgba(126,184,164,0.3)", padding: "4px 12px", borderRadius: 20 },
+    btn: { display: "block", width: "100%", padding: "16px 32px", background: "linear-gradient(135deg,#c9a84c,#e8c96a)", color: "#0a0a0f", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5, fontFamily: "monospace", transition: "opacity 0.2s, transform 0.15s" },
+    btnOff: { opacity: 0.35, cursor: "not-allowed" },
+    btnSec: { padding: "14px 24px", background: "transparent", color: "#a89f94", border: "1px solid rgba(168,159,148,0.28)", borderRadius: 10, fontSize: 14, cursor: "pointer", fontFamily: "monospace" },
+    btnRow: { display: "flex", gap: 12, justifyContent: "space-between" },
+    stepLbl: { fontSize: 10, fontFamily: "monospace", letterSpacing: 3, color: "#7eb8a4", marginBottom: 12 },
+    h2: { fontSize: 22, fontWeight: 700, marginBottom: 10, lineHeight: 1.3, color: "#e8e2d9" },
+    h2sub: { fontSize: 14, color: "#a89f94", marginBottom: 24, lineHeight: 1.6 },
+    grid: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 },
+    vCard: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.2s", position: "relative" },
+    vCardOn: { border: "1px solid #c9a84c", background: "rgba(201,168,76,0.1)", transform: "translateY(-2px)", boxShadow: "0 4px 20px rgba(201,168,76,0.2)" },
+    vCardOff: { opacity: 0.28, cursor: "not-allowed" },
+    rank: { position: "absolute", top: 6, right: 6, fontSize: 9, fontFamily: "monospace", background: "#c9a84c", color: "#0a0a0f", borderRadius: 4, padding: "2px 5px", fontWeight: 700 },
+    prog: { height: 3, background: "rgba(255,255,255,0.09)", borderRadius: 2, marginBottom: 28, overflow: "hidden" },
+    progFill: { height: "100%", background: "linear-gradient(90deg,#c9a84c,#e8c96a)", borderRadius: 2, transition: "width 0.4s" },
+    ta: { width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 10, padding: "14px 16px", color: "#e8e2d9", fontSize: 15, fontFamily: "Georgia,serif", lineHeight: 1.6, resize: "vertical", marginBottom: 20, outline: "none" },
+    rWrap: { display: "flex", flexDirection: "column", gap: 16 },
+    rHead: { fontSize: "clamp(18px,4vw,24px)", fontWeight: 700, color: "#c9a84c", lineHeight: 1.3, marginBottom: 14, fontStyle: "italic" },
+    rTheme: { fontSize: 15, lineHeight: 1.75, color: "#a89f94" },
+    two: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+    rBlk: { background: "rgba(126,184,164,0.06)", border: "1px solid rgba(126,184,164,0.18)", borderRadius: 12, padding: 20 },
+    rBlkW: { background: "rgba(255,150,80,0.06)", border: "1px solid rgba(255,150,80,0.18)", borderRadius: 12, padding: 20 },
+    rIcon: { fontSize: 24, marginBottom: 8 },
+    rLbl: { fontSize: 11, fontFamily: "monospace", letterSpacing: 2, color: "#c9a84c", marginBottom: 10, textTransform: "uppercase" },
+    rTxt: { fontSize: 14, lineHeight: 1.75, color: "#c8c0b8" },
+    barsW: { display: "flex", flexDirection: "column", gap: 14, marginTop: 16 },
+    barRow: { display: "flex", flexDirection: "column", gap: 4 },
+    barLbl: { fontSize: 13, fontWeight: 700, color: "#e8e2d9" },
+    barTrack: { height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" },
+    barFill: { height: "100%", background: "linear-gradient(90deg,#c9a84c,#e8c96a)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "flex-end" },
+    barScore: { fontSize: 9, color: "#0a0a0f", fontFamily: "monospace", paddingRight: 4 },
+    barRole: { fontSize: 11, color: "#7a7570", fontStyle: "italic" },
+    pmCard: { background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.38)", borderRadius: 14, padding: "24px 28px" },
+    pmLbl: { fontSize: 10, fontFamily: "monospace", letterSpacing: 3, color: "#c9a84c", marginBottom: 12 },
+    pmTxt: { fontSize: 16, lineHeight: 1.75, color: "#e8e2d9", fontWeight: 600 },
+    affCard: { textAlign: "center", padding: "32px 24px", borderTop: "1px solid rgba(201,168,76,0.14)" },
+    affQ: { fontSize: "clamp(16px,4vw,20px)", fontStyle: "italic", color: "#c9a84c", lineHeight: 1.5, fontWeight: 600 },
+    analyzeSteps: { marginTop: 24, display: "flex", flexDirection: "column", gap: 14 },
+    aStep: { fontSize: 13, color: "#a89f94", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 10 },
+    aDot: { color: "#c9a84c" },
+  };
+
+  return (
+    <div style={S.root}>
+      {/* Ambient orbs */}
+      <div style={{ ...S.orb, width: 420, height: 420, background: "#c9a84c", top: -120, right: -100, transform: `translate(${fx}px,${fy}px)` }} />
+      <div style={{ ...S.orb, width: 520, height: 520, background: "#2d5a8e", bottom: -160, left: -140, transform: `translate(${-fx}px,${-fy}px)` }} />
+      <div style={{ ...S.orb, width: 320, height: 320, background: "#7c3d8e", top: "38%", left: "58%", transform: `translate(${fy*0.5}px,${fx}px)` }} />
+
+      <div style={S.wrap}>
+
+        {/* ── WELCOME ── */}
+        {stage === "welcome" && (
+          <div style={S.card}>
+            <div style={S.badge}>PERSONAL VALUES ENGINE</div>
+            <span style={S.heroIcon}>🧭</span>
+            <h1 style={S.h1}>Know Your Values.<br/><span style={S.gold}>Dominate Your Lane.</span></h1>
+            <p style={S.sub}>Built for entrepreneurs who want to make decisions with conviction — not confusion. Select your core values, answer 3 questions, and get AI-powered insight that hits different.</p>
+            <div style={S.pills}>
+              {["5-min exercise","AI-powered","Actionable results"].map(p => <span key={p} style={S.pill}>{p}</span>)}
+            </div>
+            <button className="btn-primary" style={S.btn} onClick={() => setStage("discover")}>Start Your Analysis →</button>
+          </div>
+        )}
+
+        {/* ── SELECT VALUES ── */}
+        {stage === "discover" && currentQ === -1 && (
+          <div style={S.card}>
+            <div style={S.stepLbl}>STEP 1 OF 2</div>
+            <h2 style={S.h2}>Select Your Top 5 Values</h2>
+            <p style={S.h2sub}>These are the non-negotiables. The things you'd burn the boats for.{selectedValues.length > 0 && <span style={{color:"#c9a84c",fontWeight:700}}> {selectedValues.length}/5 selected</span>}</p>
+            <div style={S.grid}>
+              {VALUES_CARDS.map(v => {
+                const on  = selectedValues.includes(v.id);
+                const off = selectedValues.length >= 5 && !on;
+                const rank = selectedValues.indexOf(v.id) + 1;
+                return (
+                  <div key={v.id} className="value-card" style={{ ...S.vCard, ...(on ? S.vCardOn : {}), ...(off ? S.vCardOff : {}) }} onClick={() => !off && toggleValue(v.id)}>
+                    {on && <div style={S.rank}>#{rank}</div>}
+                    <div style={{fontSize:28,marginBottom:6}}>{v.emoji}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#e8e2d9",marginBottom:3}}>{v.label}</div>
+                    <div style={{fontSize:10,color:"#7a7570",lineHeight:1.3}}>{v.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="btn-primary" style={{ ...S.btn, ...(selectedValues.length < 3 ? S.btnOff : {}) }}
+              onClick={() => selectedValues.length >= 3 && setCurrentQ(0)}
+              disabled={selectedValues.length < 3}>
+              {selectedValues.length < 3 ? "Select at least 3 values" : "Continue to Questions →"}
+            </button>
+          </div>
+        )}
+
+        {/* ── QUESTIONS ── */}
+        {stage === "discover" && currentQ >= 0 && (
+          <div style={S.card}>
+            <div style={S.stepLbl}>STEP 2 OF 2 · QUESTION {currentQ+1}/{QUESTIONS.length}</div>
+            <div style={S.prog}><div style={{ ...S.progFill, width: `${((currentQ+1)/QUESTIONS.length)*100}%` }} /></div>
+            <h2 style={S.h2}>{QUESTIONS[currentQ].prompt}</h2>
+            <textarea className="ta" style={S.ta} rows={4}
+              placeholder={QUESTIONS[currentQ].placeholder}
+              value={answers[QUESTIONS[currentQ].id] || ""}
+              onChange={e => setAnswers(a => ({ ...a, [QUESTIONS[currentQ].id]: e.target.value }))}
+            />
+            <div style={S.btnRow}>
+              <button style={S.btnSec} onClick={() => currentQ === 0 ? setCurrentQ(-1) : setCurrentQ(q => q-1)}>← Back</button>
+              <button className="btn-primary" style={{ ...S.btn, width: "auto" }}
+                onClick={() => currentQ < QUESTIONS.length-1 ? setCurrentQ(q => q+1) : analyzeValues()}>
+                {currentQ < QUESTIONS.length-1 ? "Next →" : "Analyze My Values →"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ANALYZING ── */}
+        {stage === "analyze" && (
+          <div style={S.card}>
+            <span style={{ ...S.heroIcon, animation: "pulse 1.5s ease infinite" }}>🧠</span>
+            <h2 style={{ ...S.h2, textAlign: "center" }}>Analyzing Your Values{dots}</h2>
+            <p style={{ ...S.h2sub, textAlign: "center" }}>Running your data through a values intelligence framework</p>
+            <div style={S.analyzeSteps}>
+              {["Mapping your value fingerprint","Identifying your superpower","Detecting blindspots","Building your decision compass"].map(s => (
+                <div key={s} className="analyze-step" style={S.aStep}><span style={S.aDot}>◆</span>{s}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── RESULTS ── */}
+        {stage === "results" && result && !result.error && (
+          <div style={S.rWrap}>
+            <div style={S.card}>
+              <div style={S.badge}>YOUR VALUES REPORT</div>
+              <h1 style={S.rHead}>"{result.headline}"</h1>
+              <p style={S.rTheme}>{result.coreTheme}</p>
+            </div>
+
+            <div style={S.two}>
+              <div style={S.rBlk}>
+                <div style={S.rIcon}>⚡</div>
+                <div style={S.rLbl}>Your Superpower</div>
+                <p style={S.rTxt}>{result.superpower}</p>
+              </div>
+              <div style={S.rBlkW}>
+                <div style={S.rIcon}>⚠️</div>
+                <div style={S.rLbl}>Your Blindspot</div>
+                <p style={S.rTxt}>{result.blindspot}</p>
+              </div>
+            </div>
+
+            <div style={S.card}>
+              <div style={S.rIcon}>🎯</div>
+              <div style={S.rLbl}>Goal Alignment</div>
+              <p style={S.rTxt}>{result.goalAlignment}</p>
+            </div>
+
+            <div style={S.card}>
+              <div style={S.rIcon}>🔀</div>
+              <div style={S.rLbl}>Decision Compass</div>
+              <p style={S.rTxt}>{result.decisionGuide}</p>
+            </div>
+
+            {result.valueRankings && (
+              <div style={S.card}>
+                <div style={S.rLbl}>Value Strength Map</div>
+                <div style={S.barsW}>
+                  {result.valueRankings.map(vr => (
+                    <div key={vr.value} style={S.barRow}>
+                      <div style={S.barLbl}>{vr.value}</div>
+                      <div style={S.barTrack}>
+                        <div className="bar-fill" style={{ ...S.barFill, width: `${vr.score}%` }}>
+                          <span style={S.barScore}>{vr.score}%</span>
+                        </div>
+                      </div>
+                      <div style={S.barRole}>{vr.role}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={S.pmCard}>
+              <div style={S.pmLbl}>⚡ YOUR POWER MOVE THIS WEEK</div>
+              <p style={S.pmTxt}>{result.powerMove}</p>
+            </div>
+
+            <div style={S.affCard}>
+              <div style={S.affQ}>"{result.affirmation}"</div>
+            </div>
+
+            <button className="btn-primary" style={S.btn} onClick={reset}>Start Over</button>
+          </div>
+        )}
+
+        {stage === "results" && result?.error && (
+          <div style={S.card}>
+            <p style={{color:"#ff6b6b",marginBottom:20}}>{result.error}</p>
+            <button className="btn-primary" style={S.btn} onClick={reset}>Try Again</button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
